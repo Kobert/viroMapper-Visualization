@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+  
+  <link rel="stylesheet" type="text/css" href="resources/summary.css">
+  
+  <script>var analysis_name = "Unnamed Analysis";</script>
+  
+  <script src="resources/3rd_party/plotly-latest.min.js"></script>
+  <script src="resources/3rd_party/d3.v3.min.js"></script>
+    <script src="resources/summary_UE.js"></script>
+    
+<!--  TODO On the following line, replace _temp.js with your path to the js file containing the data     -->
+	<script src="_temp.js"></script>
+	
+
+
+  <title id="title">
+ Untitled
+  </title>
+<script>
+document.getElementById("title").innerHTML = analysis_name;
+"use strict";
+var defaultPlotlyConfiguration = { modeBarButtonsToRemove: ['sendDataToCloud', 'autoScale2d', 'hoverClosestCartesian', 'hoverCompareCartesian', 'lasso2d', 'select2d'], displaylogo: false, showTips: true, showLink: false , plotGlPixelRatio: 2};
+
+// from: https://stackoverflow.com/questions/9847580/how-to-detect-safari-chrome-ie-firefox-and-opera-browser
+var isChrome = !!window.chrome && !!window.chrome.webstore;
+
+// Internet Explorer 6-11
+var isIE = /*@cc_on!@*/false || !!document.documentMode;
+
+// Edge 20+
+var isEdge = !isIE && !!window.StyleMedia;
+
+</script>
+
+</head>
+<body>
+<div id="js_warning_top" class="js_warning" style="top: 0;">
+<h1>&#9888; This summary requires JavaScript to work, which seems to not be enabled! &#9888;</h1>
+</div>
+<div id="js_warning_bottom" class="js_warning" style="bottom: 0;">
+<h1>&#9888; This summary requires JavaScript to work, which seems to not be enabled! &#9888;</h1>
+</div>
+<script>
+document.getElementById('js_warning_top').style.display = 'none';
+document.getElementById('js_warning_bottom').style.display = 'none';
+</script>
+
+
+
+
+
+<div id="top_menu" class="navbar no-print">
+
+<span id="display_current_view_name"></span>
+
+<!-- <a id="button_smooth" href="" title="Calculate average over the n neighboring sites.">Smooth:</a> -->
+<!-- <input type="number" name="smooth_sites" min="1" value="1" widht="auto"> -->
+
+<a id="button_rerange" href="list.html" title="Redraw all plots with current x axis.">Aplly range to all</a>
+
+<a id="button_consensus_sequence" href="Results.html" title="Show the consensus sequence for the selected range.">Sequence</a>
+
+<a id="button_hide" href="Results.html" title="Hide current plot">Hide</a>
+
+<!-- <a id="button_data_selective" title="Show data-points for the selected range.">Underlying Data</a> -->
+
+<span id="menu_divider" class="divide"></span>
+<div id="right_menu" class="right_nav">
+<a id="button_print" href="Results.html" title="Print plots">&#128438;</a>
+<!-- </div> -->
+<a id="button_data" href="resources/list.html" title="Show all data-points.&#10;This may take a while to load!">Data File</a>
+</div>
+</div>
+<script>
+// make some elements right aligned
+update_menu_width();
+
+// Wait for the page to load first
+function handle_navbar(){
+        
+    document.getElementById("button_hide").onclick = function(){
+        hide_plot(current_view);
+//         update_menu(); //should also be done in the function
+        return false;
+    }
+
+    document.getElementById("button_rerange").onclick = function(){
+        rerange_plots(current_view);
+        return false;
+    }
+    
+    document.getElementById("button_consensus_sequence").onclick = function(){
+        show_consensus_sequence(current_view);
+        return false;
+    }
+    
+//     document.getElementById("button_data_selective").onclick = function(){
+//         create_selective_data(current_view);
+//         return false;
+//     }
+    
+    
+//     NOTE at this moment, this function does nothing. In an attempt to avoid confirm popups, an alterantive approach is now used.
+    document.getElementById("button_data").onclick = function(){
+//     if ('confirm' in window) {
+//     console.log('Confirm available!');
+return true;
+//         if(!confirm("Show underlying data-file?\n(This may take a while to load)"))
+//         {return false;}
+//     }
+//     return true;
+    }
+
+    
+    document.getElementById("button_print").onclick = function(){
+
+        
+        if(!print_ratio && show_ratio && !(isChrome || isIE || isEdge) ){
+            if(confirm("Relative frequency is not in print mode.\nDo you want to enable print mode now?")){
+             toggle_ratio_print();
+            }
+        }
+        
+        window.print();
+        return false;
+    }
+    
+    
+}
+</script>
+
+
+<script>
+// All of the following is the box showing the consensus sequence for a selected region---------------------------------------------------------
+var consensus_shown = false;
+</script>
+<div class="navbar sequenceBox" id="sequence_box" style="display: none;">
+<a id="x_sequence_box" class="close_button" title="Click to close.">
+&#128473;
+<!-- X -->
+</a>
+<span>Consensus Sequence: </span>
+<!--<a>&#9998;</a>-->
+<input type="textarea" id="consensus_sequence_field" value="">
+<a id="select_sequence_button" title="Click to select the sequence.&#10;Use 'Ctr+c to export it.'">
+<!-- Stift -->
+&#9998; 
+</a>
+</div>
+
+<script>
+function handle_sequence_box(){
+    document.getElementById("x_sequence_box").onclick = function(){
+    document.getElementById("sequence_box").style.display = "none";
+    consensus_shown = false;
+        return false;
+    }
+    
+    document.getElementById("select_sequence_button").onclick = function(){
+    document.getElementById("consensus_sequence_field").select();
+    return false;
+    }
+}
+// ------------------------------------------------------------------------------------------------------------------------------------------
+</script>
+
+
+<script>
+// All of the following is the box showing the values for a single selected point ------------------------------------------------------------
+var single_point_shown = false;
+</script>
+<div class="navbar sequenceBox" id="data_point_box" style="display: none;">
+<!--<a id="x_data_point_box" class="close_button" title="Click to close.">
+&#128473;
+</a>-->
+<!-- <span id="data_point_inner">Site: </span> -->
+<div style="display: flex;">
+<table class="close_table" style="border: none;">
+<tr>
+<th style="border: none;"><a id="x_data_point_box" title="Click to close.">
+&#128473;
+<!-- X -->
+</a></th></tr>
+<tr><td style="border: none;">
+<a id="data_point_button" title="Click to change to data-file.&#10;This may take a while to load.">
+&#187;
+<!-- X -->
+</a>
+</td></tr>
+</table>
+
+<table id="table_header" class="content_table">
+<tr style="background-color:lightblue;">
+<th title="Nucleotide position on the reference genome" id='c1'>Position</th><th id='c2' title="Number of Adenine bases observed at this position">As</th><th title="Number of Cytosine bases observed at this position">Cs</th><th title="Number of Guanine bases observed at this position">Gs</th><th title="Number of Thymin or Uracil bases observed at this position">Ts</th><th title="Number of undetermined beses at this position">Ns</th><th title="Total coverage at this site">coverage</th><th title="Most prevalent base at this position">majorsequence</th><th title="Ratio of occurences of the most prevalent base to the total coverage">majorbase_ratio</th><th>secondbase</th><th>secondbase_ratio</th><th title="Average probability of a sequencing error">probability_of_seq_error</th><th title="Expected number of sequencing errors at this site.">expected_number_of_errors</th></tr>
+<tr>
+<td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>A</td><td>-nan</td><td>0</td><td>-nan</td><td>-nan</td><td>-nan</td>
+</tr>
+</table>
+</div>
+</div>
+
+<script>
+function handle_data_box(){
+    document.getElementById("x_data_point_box").onclick = function(){
+    document.getElementById("data_point_box").style.display = "none";
+    single_point_shown = false;
+    update_consensus_position();
+        return false;
+    }
+}
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+</script>
+
+
+
+<!--<button type="button" id="button_data" onclick="goto_data()" class='no-print main' title="You may also click on any data point in any of the plots to go directly to the releveant line.">Show underlying Data</button>-->
+
+<p>
+<h1 id="top_element" class="main">Result Plots:</h1>
+</p>
+<script>
+if(analysis_name != "Unnamed Analysis"){
+document.getElementById('top_element').innerHTML = "Result Plots: "+analysis_name;
+}
+</script>
+
+
+<script>
+var current_view = ":";
+document.getElementById('display_current_view_name').innerHTML = get_title("plot_area_coverage");
+
+var relative_A;
+var relative_C;
+var relative_G;
+var relative_T;
+
+var relative_plot_A;
+var relative_plot_C;
+var relative_plot_G;
+var relative_plot_T;
+
+
+
+var relative_plot_A_filtered;
+var relative_plot_C_filtered;
+var relative_plot_G_filtered;
+var relative_plot_T_filtered;
+
+var consensus_filtered;
+
+process_data();
+
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- Plot the coverage -->
+<p style="margin-top:100px"></p>
+<div>
+<h3 id="title_coverage">Coverage:
+<button type="button" id="button_coverage" onclick="turn_on_coverage()" class='no-print' style="display: none;">Show Plot</button>
+</h3>
+<p></p>
+<div id="plot_area_coverage" class="standard_view"></div>
+</div>
+<script>
+
+var show_coverage = true;
+
+
+    var trace_coverage = {
+      type: 'scatter',                    // set the chart type
+      mode: 'points',                      
+      y: coverage,
+      line: {                             // set the width of the line.
+        width: 1
+      },
+                  text: 'Click to inspect values'
+                  
+//       text: 'Click to open data-file'     //additional text on hovering over points
+    };
+
+        var layout_coverage = {
+      yaxis: {title: "Coverage"},       // set the y axis title
+      xaxis: {title: "Sites"},
+      margin: {                           // update the left, bottom, right, top margin
+        l: 60, b: 40, r: 10, t: 20
+      }
+    };
+    
+    Plotly.plot(document.getElementById('plot_area_coverage'), [trace_coverage], layout_coverage, defaultPlotlyConfiguration);
+
+    document.getElementById('plot_area_coverage').on('plotly_click', function (eventdata){
+
+            console.log("x:"+eventdata.points[0].x+" y:"+eventdata.points[0].y);
+//             goto_data_i(eventdata.points[0].x);
+            handle_plotly_click(eventdata.points[0].x);
+});
+
+    document.getElementById('plot_area_coverage').on('plotly_relayout', function (eventdata){
+
+           update_menu_specific('plot_area_coverage');
+});
+
+// debugger;
+</script>
+
+<!-- <span class='no-print'>Coverage: </span> -->
+<!-- <button type="button" id="button_coverage" onclick="toggel_coverage()" class='no-print' style="display: none;">Show Plot</button> -->
+<!-- <button type="button" title="Apply this x range to all subsequent plots." id="button_range_coverage" onclick="apply_range_coverage()" class='no-print'>Apply Range to Plots</button> -->
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- Plot the relative rates -->
+<p style="margin-top:100px"></p>
+<div>
+<h3 id="title_ratio">
+Relative frequency of the most common base:
+
+<button type="button" id="button_ratio" onclick="turn_on_ratio()" class='no-print' style="display: none;" >Show Plot</button>
+</h3>
+<p></p>
+
+<div id="plot_area_ratio" class="standard_view"></div>
+</div>
+
+<script>
+
+var show_ratio = true;
+
+var filtered_ratio = true;
+
+var print_ratio = false;
+
+    if(isChrome){
+        print_ratio = true;
+    }
+    
+    var trace_ratio_A = {
+//       type: 'scatter',                    // set the chart type
+        type: 'scattergl',                    // set the chart type
+        mode: 'markers',                    
+        marker: { size: 2 },
+//       y: majorbase_ratio
+        y:relative_plot_A,
+        name: 'A',
+//       text: 'Click to open data-file'
+            text: 'Click to inspect values'
+    };
+    
+        var trace_ratio_C = {
+//       type: 'scatter',                    // set the chart type
+        type: 'scattergl',                    // set the chart type
+        mode: 'markers',                    
+        marker: { size: 2 },
+//       y: majorbase_ratio
+        y:relative_plot_C,
+        name: 'C',
+//       text: 'Click to open data-file'
+             text: 'Click to inspect values'
+             };        
+    
+    var trace_ratio_G = {
+//       type: 'scatter',                    // set the chart type
+        type: 'scattergl',                    // set the chart type
+        mode: 'markers',                    
+        marker: { size: 2 },
+//       y: majorbase_ratio
+        y:relative_plot_G,
+        name: 'G',
+                    text: 'Click to inspect values'
+//       text: 'Click to open data-file'
+    };
+    
+   var trace_ratio_T = {
+//       type: 'scatter',                    // set the chart type
+        type: 'scattergl',                    // set the chart type
+        mode: 'markers',                    
+        marker: { size: 2 },
+//       y: majorbase_ratio
+        y:relative_plot_T,
+        name: 'T',
+                    text: 'Click to inspect values'
+//       text: 'Click to open data-file'
+    };
+    
+        var trace_ratio_A_filtered = {
+//       type: 'scatter',                    // set the chart type
+        type: 'scattergl',                    // set the chart type
+        mode: 'markers',                    
+        marker: { size: 2 },
+//       y: majorbase_ratio
+        y:relative_plot_A_filtered,
+        name: 'A',
+                    text: 'Click to inspect values'
+//       text: 'Click to open data-file'
+    };
+    
+        var trace_ratio_C_filtered = {
+//       type: 'scatter',                    // set the chart type
+        type: 'scattergl',                    // set the chart type
+        mode: 'markers',                    
+        marker: { size: 2 },
+//       y: majorbase_ratio
+        y:relative_plot_C_filtered,
+        name: 'C',
+                    text: 'Click to inspect values'
+//       text: 'Click to open data-file'
+    };        
+    
+    var trace_ratio_G_filtered = {
+//       type: 'scatter',                    // set the chart type
+        type: 'scattergl',                    // set the chart type
+        mode: 'markers',                    
+        marker: { size: 2 },
+//       y: majorbase_ratio
+        y:relative_plot_G_filtered,
+        name: 'G',
+                    text: 'Click to inspect values'
+//       text: 'Click to open data-file'
+    };
+    
+   var trace_ratio_T_filtered = {
+//       type: 'scatter',                    // set the chart type
+        type: 'scattergl',                    // set the chart type
+        mode: 'markers',                    
+        marker: { size: 2 },
+//       y: majorbase_ratio
+        y:relative_plot_T_filtered,
+        name: 'T',
+                    text: 'Click to inspect values'
+//       text: 'Click to open data-file'
+    };
+
+        var layout_ratio = {
+      yaxis: {title: "Ratio"},       // set the y axis title
+      xaxis: {title: "Sites"},
+      margin: {                           // update the left, bottom, right, top margin
+        l: 60, b: 40, r: 10, t: 20
+      }
+    };
+    
+    if(isChrome){
+    trace_ratio_A_filtered.type = "scatter";
+    trace_ratio_C_filtered.type = "scatter";
+    trace_ratio_G_filtered.type = "scatter";
+    trace_ratio_T_filtered.type = "scatter";
+    
+    trace_ratio_A.type = "scatter";
+    trace_ratio_C.type = "scatter";
+    trace_ratio_G.type = "scatter";
+    trace_ratio_T.type = "scatter";
+    }
+    
+    Plotly.plot(document.getElementById('plot_area_ratio'), [trace_ratio_A_filtered], layout_ratio, defaultPlotlyConfiguration);
+    Plotly.plot(document.getElementById('plot_area_ratio'), [trace_ratio_C_filtered], layout_ratio, defaultPlotlyConfiguration);
+    Plotly.plot(document.getElementById('plot_area_ratio'), [trace_ratio_G_filtered], layout_ratio, defaultPlotlyConfiguration);
+    Plotly.plot(document.getElementById('plot_area_ratio'), [trace_ratio_T_filtered], layout_ratio, defaultPlotlyConfiguration);
+    
+
+    document.getElementById('plot_area_ratio').on('plotly_click', function (eventdata){
+//     var points = eventdata.points[0],
+//         pointNum = points.pointNumber;
+//         console.log(eventdata.points[0]);
+        console.log("x:"+eventdata.points[0].x+" y:"+eventdata.points[0].y);
+//         goto_data_i(eventdata.points[0].x);
+            handle_plotly_click(eventdata.points[0].x);
+});
+
+    document.getElementById('plot_area_ratio').on('plotly_relayout', function (eventdata){
+
+           update_menu_specific('plot_area_ratio');
+});
+
+</script>
+
+
+<script>
+function smooth_ratio(){
+var value = document.getElementById('input_smooting_sites_ratio').value;
+
+if(value < 1){
+return;
+}
+
+smooth_ratio_plot(value);
+
+
+console.log("Smoothed "+value);
+}
+</script>
+<!--<span class='no-print'>Ratio: </span>-->
+<!--  -->
+<span class='no-print'>Smooth data points:</span>
+<input type="number" placeholder="Number of sites to average" min="1" id="input_smooting_sites_ratio" class='no-print'>
+<button type="button" title="Smooth the points by calculating the mean for n adjacent sites." id="button_smooth_sites_ratio" onclick="smooth_ratio()" class='no-print'>Apply smoothing</button>
+<br>
+
+
+<button type="button" title="Show only sites with more than 1% of average coverage." id="button_toggle_filter_on" onclick="toggle_plot_filter(0)" class='no-print' disabled="disabled">Filtered Data</button>
+<button type="button" title="Show all points." id="button_toggle_filter_off" onclick="toggle_plot_filter()" class='no-print'>Unfiltered Data</button>
+<button type="button" title="Loads points for a printable version. This may take some time to load." id="button_toggle_print" onclick="toggle_ratio_print()" class='no-print'>Print Version [<font color="red">Off</font>]</button>
+<!-- <button type="button" title="Apply this x range to all other plots." id="button_range_ratio" onclick="apply_range_ratio()" class='no-print'>Apply Range to Plots</button> -->
+
+<script>
+// Sometimes the button does not start hidden otherwise...
+(function(){document.getElementById("button_toggle_filter_on").disabled     = true;})();
+
+if(isChrome || isIE || isEdge){
+document.getElementById('button_toggle_print').style.display = "none";
+}
+</script>
+
+
+
+
+
+
+
+
+
+
+
+<!-- Plot the quality-profiles -->
+
+<p style="margin-top:100px"></p>
+
+<div>
+<h3 id="title_quality">
+Phread scores per site:
+<button type="button" id="button_quality" onclick="turn_on_quality()" class='no-print' style="display: none;">Show Plot</button>
+</h3>
+<p></p>
+
+
+<div id="plot_area_quality" class="standard_view" style="height: 400px"></div>
+</div>
+
+<div id="caption_quality" style="margin-top:10px">
+Minimum/Maximum are calculated over a range of adjacent sites (centered at the displayed position). Similarly, quantiles are normalized over the same range.
+</div>
+
+<script>
+
+var show_quality = true;
+
+
+var data = [];
+
+var number_of_values = As.length;
+
+
+var initial_quality_range_x = [0, layout_coverage.xaxis.range[1]];
+var initial_quality_range_y = [];                
+                
+                
+get_trace_quality(initial_quality_range_x[0], initial_quality_range_x[1]);
+
+    
+    
+    var layout_quality = {
+        yaxis: {
+        title: "Quality Profiles as Phread score<br>(Minimum, 25\%, 50\%, and 75\% quantiles, maximum)",
+        rangemode: 'tozero',
+        },       // set the y axis title
+    xaxis: {title: "Sites",
+            autorange: false,
+            range: [initial_quality_range_x[0],initial_quality_range_x[1]] },
+//     boxgap:0,
+    
+      margin: {                           // update the left, bottom, right, top margin
+      l: 60, b: 40, r: 10, t: 20
+      }
+    };
+    
+    Plotly.newPlot('plot_area_quality', data, layout_quality, defaultPlotlyConfiguration);
+    
+    initial_quality_range_y[0] = layout_quality.yaxis.range[0];
+    initial_quality_range_y[1] = layout_quality.yaxis.range[1];
+    
+        document.getElementById('plot_area_quality').on('plotly_click', function (eventdata){
+            console.log("x:"+eventdata.points[0].x+" y:"+eventdata.points[0].y);   
+//             goto_data_i(eventdata.points[0].x);
+            handle_plotly_click(eventdata.points[0].x);
+        });
+        
+            
+
+            
+    document.getElementById('plot_area_quality').on('plotly_relayout', function (eventdata){
+
+        update_menu_specific('plot_area_quality');
+        
+        redo_quality();
+
+        });
+
+</script>
+
+<!-- <span class='no-print'>Quality Profiles: </span> -->
+<!-- <button type="button" id="button_quality" onclick="toggel_quality()" class='no-print'>Hide Plot</button> -->
+<!--  -->
+<!-- <button type="button" title="Apply this x range to all other plots." id="button_range_quality" onclick="apply_range_quality()" class='no-print'>Apply Range to Plots</button> -->
+
+
+
+
+
+<!-- Footer -->
+<p></p>
+<font id="bottom_element" size="1" style="float: right;">Plots were produced with <a href="https://plot.ly" target="_blank">Plotly</a></font>
+<!-- <font size="3" style="float: left;"><a href="list.html" title="You may also click on any data point in any of the plots to go directly to the releveant line.">Underlying Data</a></font> -->
+<!--<script>
+// Global variable needed for update on scrolling
+var fix_bottom = document.getElementById('bottom_element').getBoundingClientRect().bottom;
+</script>-->
+
+
+<script>
+// Final definitions and initializations
+
+
+window.onscroll = update_menu;
+window.onresize = function(){
+update_menu();
+update_consensus_width();
+}
+
+window.onload = function(){
+update_menu();
+handle_navbar();
+handle_sequence_box();
+handle_data_box();
+update_menu_width();
+
+// fix_sizes();
+}
+
+</script>
+
+
+</body>
+</html>
+
